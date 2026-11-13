@@ -35,11 +35,14 @@ class Player:
         }
 
 class Room:
-    def __init__(self, code: str, host_id: int, host_name: str, host_username: str, max_players: int = 2, day: int = 1):
+    def __init__(self, code: str, host_id: int, host_name: str, host_username: str, 
+                 max_players: int = 2, day: int = 1, q_mode: str = "choice", time_limit: int = 15):
         self.code = code
         self.host_id = host_id
         self.max_players = max_players
         self.day = day
+        self.q_mode = q_mode          # 'choice' or 'written'
+        self.time_limit = time_limit  # 10, 15, 20, 25, 30
         self.status = "lobby"  # 'lobby', 'playing', 'finished'
         self.created_at = time.time()
         
@@ -86,8 +89,13 @@ class Room:
         if self.status != "lobby":
             return False
         
-        # Generate questions
-        self.questions = vocab_mgr.generate_quiz(day=self.day, count=10, mix_written=True)
+        # Generate questions with strictly chosen mode and custom time limit
+        self.questions = vocab_mgr.generate_quiz(
+            day=self.day, 
+            count=10, 
+            q_mode=self.q_mode, 
+            time_limit=self.time_limit
+        )
         self.current_q_index = 0
         self.status = "playing"
         for p in self.players.values():
@@ -319,6 +327,8 @@ class Room:
             "host_id": self.host_id,
             "max_players": self.max_players,
             "day": self.day,
+            "q_mode": self.q_mode,
+            "time_limit": self.time_limit,
             "status": self.status,
             "player_count": len(self.players),
             "players": [p.to_dict() for p in self.players.values()]
@@ -329,14 +339,15 @@ class GameManager:
         self.rooms: Dict[str, Room] = {}
         self.user_to_room: Dict[int, str] = {}
 
-    def create_room(self, host_id: int, host_name: str, host_username: str, max_players: int = 2, day: int = 1) -> Room:
+    def create_room(self, host_id: int, host_name: str, host_username: str, 
+                    max_players: int = 2, day: int = 1, q_mode: str = "choice", time_limit: int = 15) -> Room:
         # Generate 6-digit room code
         while True:
             code = str(random.randint(100000, 999999))
             if code not in self.rooms:
                 break
         
-        room = Room(code, host_id, host_name, host_username, max_players, day)
+        room = Room(code, host_id, host_name, host_username, max_players, day, q_mode, time_limit)
         self.rooms[code] = room
         self.user_to_room[host_id] = code
         return room

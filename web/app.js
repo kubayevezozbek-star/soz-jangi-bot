@@ -8,12 +8,26 @@ if (tg) {
   tg.ready();
 }
 
-// User state
-const currentUser = {
-  id: tg?.initDataUnsafe?.user?.id || 1438313297,
-  first_name: tg?.initDataUnsafe?.user?.first_name || "O'yinchi",
-  username: tg?.initDataUnsafe?.user?.username || ""
-};
+// User state with persistent unique ID fallback (prevents multi-device collision)
+function getAppUser() {
+  let uid = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+  let fname = window.Telegram?.WebApp?.initDataUnsafe?.user?.first_name;
+  let uname = window.Telegram?.WebApp?.initDataUnsafe?.user?.username || "";
+
+  if (!uid) {
+    let stored = localStorage.getItem('soz_jangi_uid');
+    if (!stored) {
+      stored = Math.floor(10000000 + Math.random() * 90000000);
+      localStorage.setItem('soz_jangi_uid', stored);
+    }
+    uid = parseInt(stored);
+    fname = localStorage.getItem('soz_jangi_uname') || `O'yinchi #${String(uid).slice(-4)}`;
+  }
+
+  return { id: uid, first_name: fname, username: uname };
+}
+
+const currentUser = getAppUser();
 
 let userStats = {
   score: 0,
@@ -164,6 +178,8 @@ async function fetchUserStats() {
 
 let activeRoomCode = null;
 let currentMaxPlayers = 2;
+let currentQMode = 'choice'; // 'choice' (strictly test) or 'written' (strictly written)
+let currentTimeLimit = 15;   // 10, 15, 20, 25, 30
 let ws = null;
 let timerInterval = null;
 let currentQuestion = null;
@@ -172,6 +188,23 @@ function selectMaxPlayers(num) {
   currentMaxPlayers = num;
   document.querySelectorAll('#playerChips .chip').forEach((c, idx) => {
     c.classList.toggle('active', idx === (num - 2));
+  });
+  haptic('light');
+}
+
+function selectQMode(mode) {
+  currentQMode = mode;
+  const chipChoice = document.getElementById('chipModeChoice');
+  const chipWritten = document.getElementById('chipModeWritten');
+  if (chipChoice) chipChoice.classList.toggle('active', mode === 'choice');
+  if (chipWritten) chipWritten.classList.toggle('active', mode === 'written');
+  haptic('light');
+}
+
+function selectTimerLimit(seconds) {
+  currentTimeLimit = seconds;
+  document.querySelectorAll('#timerChips .chip').forEach(c => {
+    c.classList.toggle('active', c.textContent.includes(seconds + ' soniya'));
   });
   haptic('light');
 }
@@ -188,19 +221,21 @@ async function handleCreateRoomClick() {
         first_name: currentUser.first_name,
         username: currentUser.username,
         max_players: currentMaxPlayers,
-        day: day
+        day: day,
+        q_mode: currentQMode,
+        time_limit: currentTimeLimit
       })
     });
     const data = await res.json();
     if (data.code) {
-      connectToGameWebSocket(data.code, false);
+      connectToGameWebSocket(data.code, false, data.room);
     }
   } catch (e) {
     alert("Xona yaratishda xatolik yuz berdi");
   }
 }
 
-// Solo Mode: Instant 1-player room
+// Solo Mode: Instant 1-player room with selected mode and timer
 async function startSoloGame() {
   const randomDay = Math.floor(Math.random() * 96) + 1;
   try {
@@ -212,12 +247,14 @@ async function startSoloGame() {
         first_name: currentUser.first_name,
         username: currentUser.username,
         max_players: 1,
-        day: randomDay
+        day: randomDay,
+        q_mode: currentQMode,
+        time_limit: currentTimeLimit
       })
     });
     const data = await res.json();
     if (data.code) {
-      connectToGameWebSocket(data.code, true);
+      connectToGameWebSocket(data.code, true, data.room);
     }
   } catch (e) {
     alert("Solo o'yinni boshlashda xatolik");
@@ -242,7 +279,7 @@ async function joinRoomByCode(codeToJoin) {
     });
     const data = await res.json();
     if (data.success) {
-      connectToGameWebSocket(code, false);
+      connectToGameWebSocket(code, false, data.room);
     } else {
       alert(data.error || "Xona topilmadi yoki to'lgan");
     }
@@ -252,7 +289,7 @@ async function joinRoomByCode(codeToJoin) {
 }
 
 // WebSocket Connection
-function connectToGameWebSocket(roomCode, autoStart = false) {
+function connectToGameWebSocket(roomCode, autoStart = false, initialRoom = null) {
   activeRoomCode = roomCode;
   if (ws) {
     try { ws.close(); } catch(e) {}
@@ -263,6 +300,7 @@ function connectToGameWebSocket(roomCode, autoStart = false) {
   ws = new WebSocket(wsUrl);
 
   ws.onopen = () => {
+    console.log("WebSocket connected to room:", roomCode);
     if (autoStart) {
       ws.send(JSON.stringify({type: 'start_game'}));
     }
@@ -276,21 +314,34 @@ function connectToGameWebSocket(roomCode, autoStart = false) {
   };
 
   ws.onclose = () => {
-    console.log("WebSocket yopildi");
+    console.log("WebSocket disconnected");
   };
 
-  showLobby(roomCode);
+  showLobby(initialRoom || roomCode);
 }
 
-function showLobby(code) {
+function showLobby(roomData) {
   switchTab('rooms');
   document.getElementById('roomSetupCard').style.display = 'none';
   document.getElementById('roomJoinCard').style.display = 'none';
   document.getElementById('roomLobbyCard').style.display = 'block';
 
+  const code = typeof roomData === 'object' ? roomData.code : roomData;
   document.getElementById('lobbyDisplayCode').textContent = code;
-  const day = document.getElementById('roomDayInput').value || 1;
-  document.getElementById('lobbyDayBadge').textContent = `${day}-kun`;
+
+  const day = (typeof roomData === 'object' && roomData.day) ? roomData.day : (document.getElementById('roomDayInput').value || 1);
+  const qMode = (typeof roomData === 'object' && roomData.q_mode) ? roomData.q_mode : currentQMode;
+  const tLimit = (typeof roomData === 'object' && roomData.time_limit) ? roomData.time_limit : currentTimeLimit;
+
+  document.getElementById('lobbyDayBadge').textContent = `📅 ${day}-kun`;
+  document.getElementById('lobbyModeBadge').textContent = qMode === 'choice' ? '🔘 Test (Variantli)' : '✍️ Yozma Tarjima';
+  document.getElementById('lobbyTimerBadge').textContent = `⏱️ ${tLimit}s`;
+
+  const btn = document.getElementById('btnLobbyStart');
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = '🚀 O\'YINNI BOSHLASH';
+  }
 }
 
 function closeLobby() {
@@ -314,9 +365,17 @@ function shareRoomLink() {
 }
 
 function triggerReadyOrStart() {
+  haptic('medium');
+  const btn = document.getElementById('btnLobbyStart');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '⏳ O\'yin boshlanmoqda...';
+  }
+
   if (ws && ws.readyState === WebSocket.OPEN) {
-    haptic('medium');
     ws.send(JSON.stringify({type: 'start_game'}));
+  } else if (activeRoomCode) {
+    connectToGameWebSocket(activeRoomCode, true);
   }
 }
 
@@ -324,6 +383,9 @@ function triggerReadyOrStart() {
 function handleServerEvent(msg) {
   switch (msg.type) {
     case 'room_update':
+      if (msg.room) {
+        showLobby(msg.room);
+      }
       renderLobbyPlayers(msg.players);
       break;
     case 'new_question':
@@ -387,7 +449,9 @@ function launchNewQuestion(q, room) {
   document.getElementById('battleWordPron').textContent = q.pron ? `[${q.pron}]` : '';
 
   const isChoice = (q.type === 'choice');
-  document.getElementById('battleModeTag').textContent = isChoice ? "4 talik Test (⏱️ 10s)" : "Yozma (⏱️ 20s)";
+  document.getElementById('battleModeTag').textContent = isChoice 
+    ? `4 talik Test (⏱️ ${Math.round(q.time_limit)}s)` 
+    : `Yozma Tarjima (⏱️ ${Math.round(q.time_limit)}s)`;
   document.getElementById('choicesStack').style.display = isChoice ? 'flex' : 'none';
   document.getElementById('writtenWrap').style.display = isChoice ? 'none' : 'flex';
 

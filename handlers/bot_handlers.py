@@ -130,7 +130,7 @@ async def show_vocab_info(message: Message):
 async def start_solo_flow(message: Message, bot: Bot):
     user = message.from_user
     random_day = random.randint(1, 96)
-    room = game_mgr.create_room(user.id, user.first_name, user.username or "", max_players=1, day=random_day)
+    room = game_mgr.create_room(user.id, user.first_name, user.username or "", max_players=1, day=random_day, q_mode="choice", time_limit=15)
     attach_room_bot_listener(room, bot)
     await message.answer(
         f"⚡ <b>Solo rejim boshlanmoqda!</b>\nTanlangan kun: <b>{random_day}-kun</b>\nSavollar soni: 10 ta.",
@@ -154,7 +154,7 @@ async def cb_setup_count(call: CallbackQuery):
     
     if count == 1:
         # Solo
-        room = game_mgr.create_room(call.from_user.id, call.from_user.first_name, call.from_user.username or "", max_players=1, day=day)
+        room = game_mgr.create_room(call.from_user.id, call.from_user.first_name, call.from_user.username or "", max_players=1, day=day, q_mode="choice", time_limit=15)
         attach_room_bot_listener(room, call.bot)
         await call.message.edit_text(f"⚡ <b>Solo rejim!</b> {day}-kun lug'ati bo'yicha boshlanmoqda...", parse_mode="HTML")
         room.start_game(call.bot)
@@ -189,7 +189,7 @@ async def cb_choose_day(call: CallbackQuery, bot: Bot):
         day = int(day_str)
 
     user = call.from_user
-    room = game_mgr.create_room(user.id, user.first_name, user.username or "", max_players=count, day=day)
+    room = game_mgr.create_room(user.id, user.first_name, user.username or "", max_players=count, day=day, q_mode="choice", time_limit=15)
     attach_room_bot_listener(room, bot)
     
     await call.message.delete()

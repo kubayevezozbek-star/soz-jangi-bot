@@ -28,9 +28,15 @@ async def handle_create_room(request):
         username = data.get("username", "")
         max_players = int(data.get("max_players", 2))
         day = int(data.get("day", 1))
+        q_mode = str(data.get("q_mode", "choice"))
+        if q_mode not in ("choice", "written"):
+            q_mode = "choice"
+        time_limit = int(data.get("time_limit", 15))
+        if time_limit not in (10, 15, 20, 25, 30):
+            time_limit = 15
 
         await db.get_or_create_user(user_id, username, first_name)
-        room = game_mgr.create_room(user_id, first_name, username, max_players, day)
+        room = game_mgr.create_room(user_id, first_name, username, max_players, day, q_mode, time_limit)
         return web.json_response({"success": True, "code": room.code, "room": room.get_summary()})
     except Exception as e:
         logger.error(f"Error creating room: {e}")
@@ -125,6 +131,25 @@ async def handle_websocket(request):
         "room": room.get_summary(),
         "players": [p.to_dict() for p in room.players.values()]
     })
+
+    # If game is already active, immediately deliver current question
+    if room.status == "playing" and room.current_q_index < len(room.questions):
+        q = room.questions[room.current_q_index]
+        import time as _t
+        remaining = max(1.0, q["time_limit"] - (_t.time() - room.q_start_time))
+        await ws.send_json({
+            "type": "new_question",
+            "room": room.get_summary(),
+            "question": {
+                "number": room.current_q_index + 1,
+                "total": len(room.questions),
+                "type": q["type"],
+                "en": q["en"],
+                "pron": q.get("pron", ""),
+                "options": q.get("options", []),
+                "time_limit": remaining
+            }
+        })
 
     await room.broadcast_ws({
         "type": "room_update",

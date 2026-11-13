@@ -74,15 +74,30 @@
         <!-- Room Setup Card -->
         <div class="card" id="roomSetupCard">
           <h3 style="font-size: 17px; font-weight: 800; margin-bottom: 8px;">⚔️ Yangi Xona Ochish</h3>
-          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Do'stlaringiz sonini va qaysi kun lug'atini tanlang:</p>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">Do'stlaringiz bilan bellashuv shartlarini sozlang:</p>
 
           <span style="font-size: 13px; font-weight: 700; color: white;">👥 Ishtirokchilar soni:</span>
-          <div class="chips-row" id="playerChips">
+          <div class="chips-row" id="playerChips" style="margin: 8px 0 14px 0;">
             <div class="chip active" onclick="selectMaxPlayers(2)">2 kishi</div>
             <div class="chip" onclick="selectMaxPlayers(3)">3 kishi</div>
             <div class="chip" onclick="selectMaxPlayers(4)">4 kishi</div>
             <div class="chip" onclick="selectMaxPlayers(5)">5 kishi</div>
             <div class="chip" onclick="selectMaxPlayers(6)">6 kishi</div>
+          </div>
+
+          <span style="font-size: 13px; font-weight: 700; color: white;">🎮 Savol turi (Aralashmaydi):</span>
+          <div class="chips-row" id="qModeChips" style="margin: 8px 0 14px 0;">
+            <div class="chip active" id="chipModeChoice" onclick="selectQMode('choice')">🔘 Faqat 4 talik Test</div>
+            <div class="chip" id="chipModeWritten" onclick="selectQMode('written')">✍️ Faqat Yozma Tarjima</div>
+          </div>
+
+          <span style="font-size: 13px; font-weight: 700; color: white;">⏱️ Har bir savol vaqti:</span>
+          <div class="chips-row" id="timerChips" style="margin: 8px 0 14px 0;">
+            <div class="chip" onclick="selectTimerLimit(10)">10 soniya</div>
+            <div class="chip active" onclick="selectTimerLimit(15)">15 soniya</div>
+            <div class="chip" onclick="selectTimerLimit(20)">20 soniya</div>
+            <div class="chip" onclick="selectTimerLimit(25)">25 soniya</div>
+            <div class="chip" onclick="selectTimerLimit(30)">30 soniya</div>
           </div>
 
           <span style="font-size: 13px; font-weight: 700; color: white;">📅 Qaysi kun lug'atidan o'ynaymiz? (1 - 96):</span>
@@ -110,9 +125,13 @@
         <div class="card" id="roomLobbyCard" style="display: none; text-align: center;">
           <span style="font-size: 11.5px; color: var(--text-muted); text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">XONA KODI</span>
           <div style="font-size: 38px; font-weight: 900; letter-spacing: 5px; color: #38bdf8; margin: 4px 0;" id="lobbyDisplayCode">------</div>
-          <p style="color: var(--text-muted); font-size: 13px;">Lug'at: <b id="lobbyDayBadge" style="color:white;">1-kun</b></p>
+          <div style="display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">
+            <span class="round-pill" style="font-size: 12px; padding: 4px 10px;" id="lobbyDayBadge">📅 1-kun</span>
+            <span class="round-pill" style="font-size: 12px; padding: 4px 10px;" id="lobbyModeBadge">🔘 Test</span>
+            <span class="round-pill" style="font-size: 12px; padding: 4px 10px;" id="lobbyTimerBadge">⏱️ 15s</span>
+          </div>
 
-          <button class="btn btn-secondary" style="margin: 14px 0 16px 0; padding: 11px;" onclick="shareRoomLink()">
+          <button class="btn btn-secondary" style="margin: 0 0 16px 0; padding: 11px;" onclick="shareRoomLink()">
             📲 Taklif havolasini do'stlarga yuborish
           </button>
 
@@ -121,8 +140,8 @@
             <div class="player-list" id="lobbyPlayerList"></div>
           </div>
 
-          <button class="btn btn-success" id="btnLobbyStart" onclick="triggerReadyOrStart()">
-            🟢 Tayyorman / Boshlash
+          <button class="btn btn-success" id="btnLobbyStart" style="font-size: 17px; padding: 16px;" onclick="triggerReadyOrStart()">
+            🚀 O'YINNI BOSHLASH
           </button>
           <button class="btn btn-secondary" onclick="closeLobby()">Xonadan chiqish</button>
         </div>
