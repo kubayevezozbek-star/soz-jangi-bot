@@ -13,7 +13,7 @@ PORT = int(os.getenv("PORT", "8080"))
 HOST = os.getenv("HOST", "0.0.0.0")
 
 # Auto-detect Render external URL or explicit WEBAPP_URL
-WEBAPP_URL = (os.getenv("WEBAPP_URL") or os.getenv("RENDER_EXTERNAL_URL") or "").strip()
+WEBAPP_URL = (os.getenv("WEBAPP_URL") or os.getenv("RENDER_EXTERNAL_URL") or "https://soz-jangi-bot.onrender.com").strip()
 
 DB_PATH = BASE_DIR / "data" / "soz_jangi.db"
 WORDS_FILE = BASE_DIR / "data" / "words.json"

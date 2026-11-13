@@ -2,12 +2,17 @@ services:
   - type: web
     name: soz-jangi-bot
     env: python
+    region: oregon
+    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: python main.py
+    autoDeploy: true
     envVars:
-      - key: BOT_TOKEN
-        sync: false
-      - key: ADMIN_ID
-        sync: false
       - key: PORT
         value: 10000
+      - key: BOT_TOKEN
+        value: 9056051300:AAHr9MglvV6lhk_JrR86_CSvr-TwjhWdOq8
+      - key: ADMIN_ID
+        value: 1438313297
+      - key: WEBAPP_URL
+        value: https://soz-jangi-bot.onrender.com
