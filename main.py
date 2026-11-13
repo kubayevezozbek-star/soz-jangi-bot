@@ -4,8 +4,9 @@ from aiohttp import web
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.types import MenuButtonWebApp, WebAppInfo
 
-from config import BOT_TOKEN, PORT, HOST
+from config import BOT_TOKEN, PORT, HOST, WEBAPP_URL
 import database as db
 from handlers.bot_handlers import router as bot_router
 from web_server import create_web_app
@@ -34,6 +35,16 @@ async def main():
     )
     dp = Dispatcher()
     dp.include_router(bot_router)
+
+    # Set Telegram Menu Button if WEBAPP_URL is active
+    if WEBAPP_URL:
+        try:
+            logger.info(f"Setting Telegram Menu Button to: {WEBAPP_URL}")
+            await bot.set_chat_menu_button(
+                menu_button=MenuButtonWebApp(text="🎮 O'yinni ochish", web_app=WebAppInfo(url=WEBAPP_URL))
+            )
+        except Exception as e:
+            logger.warning(f"Could not set menu button: {e}")
 
     app = create_web_app()
     web_runner = await start_web_server(app, HOST, PORT)

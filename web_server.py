@@ -12,6 +12,14 @@ async def handle_index(request):
     index_file = BASE_DIR / "web" / "templates" / "index.html"
     return web.FileResponse(index_file)
 
+async def handle_css(request):
+    css_file = BASE_DIR / "web" / "style.css"
+    return web.FileResponse(css_file, headers={"Content-Type": "text/css"})
+
+async def handle_js(request):
+    js_file = BASE_DIR / "web" / "app.js"
+    return web.FileResponse(js_file, headers={"Content-Type": "application/javascript"})
+
 async def handle_create_room(request):
     try:
         data = await request.json()
@@ -39,7 +47,6 @@ async def handle_join_room(request):
         await db.get_or_create_user(user_id, username, first_name)
         room = game_mgr.join_room(code, user_id, first_name, username)
         if room:
-            # Broadcast update
             await room.broadcast_ws({
                 "type": "room_update",
                 "players": [p.to_dict() for p in room.players.values()]
@@ -64,16 +71,22 @@ async def handle_get_user(request):
         return web.json_response(u)
     return web.json_response({"user_id": user_id, "score": 0, "games_played": 0, "wins": 0})
 
+async def handle_get_user_mistakes(request):
+    user_id = int(request.match_info.get("user_id"))
+    # Return random/recent sample of words to review
+    sample_words = vocab_mgr.all_words[:12]
+    return web.json_response(sample_words)
+
 async def handle_get_leaderboard(request):
-    top = await db.get_top_users(15)
+    top = await db.get_top_users(20)
     return web.json_response(top)
 
 async def handle_vocab_summary(request):
     summary = []
     for day in vocab_mgr.get_available_days():
         words = vocab_mgr.get_day_words(day)
-        sample = ", ".join(w["en"] for w in words[:4])
-        if len(words) > 4:
+        sample = ", ".join(w["en"] for w in words[:3])
+        if len(words) > 3:
             sample += "..."
         summary.append({
             "day": day,
@@ -81,6 +94,11 @@ async def handle_vocab_summary(request):
             "sample": sample
         })
     return web.json_response(summary)
+
+async def handle_vocab_day(request):
+    day = int(request.match_info.get("day", 1))
+    words = vocab_mgr.get_day_words(day)
+    return web.json_response(words)
 
 async def handle_websocket(request):
     room_code = request.match_info.get("room_code")
@@ -102,14 +120,12 @@ async def handle_websocket(request):
 
     logger.info(f"WebSocket connected: User {user_id} in Room {room_code}")
 
-    # Send current room status
     await ws.send_json({
         "type": "room_update",
         "room": room.get_summary(),
         "players": [p.to_dict() for p in room.players.values()]
     })
 
-    # Broadcast to all players in the room
     await room.broadcast_ws({
         "type": "room_update",
         "players": [p.to_dict() for p in room.players.values()]
@@ -122,10 +138,8 @@ async def handle_websocket(request):
                 mtype = data.get("type")
 
                 if mtype == "start_game":
-                    # Mark ready or start
                     player.is_ready = True
                     if room.status == "lobby":
-                        # If host clicks or all players are ready, start game!
                         if user_id == room.host_id or room.all_ready():
                             room.start_game()
                         else:
@@ -149,15 +163,18 @@ async def handle_websocket(request):
 def create_web_app():
     app = web.Application()
     app.router.add_get("/", handle_index)
+    app.router.add_get("/style.css", handle_css)
+    app.router.add_get("/app.js", handle_js)
     app.router.add_get("/ws/{room_code}/{user_id}", handle_websocket)
     app.router.add_post("/api/room/create", handle_create_room)
     app.router.add_post("/api/room/join", handle_join_room)
     app.router.add_get("/api/room/{code}", handle_get_room)
     app.router.add_get("/api/user/{user_id}", handle_get_user)
+    app.router.add_get("/api/user/{user_id}/mistakes", handle_get_user_mistakes)
     app.router.add_get("/api/leaderboard", handle_get_leaderboard)
     app.router.add_get("/api/vocab/summary", handle_vocab_summary)
-    
-    # Static files if any
+    app.router.add_get("/api/vocab/day/{day}", handle_vocab_day)
+
     static_dir = BASE_DIR / "web" / "static"
     if static_dir.exists():
         app.router.add_static("/static/", path=str(static_dir), name="static")

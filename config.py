@@ -11,7 +11,9 @@ ADMIN_IDS = [ADMIN_ID]
 
 PORT = int(os.getenv("PORT", "8080"))
 HOST = os.getenv("HOST", "0.0.0.0")
-WEBAPP_URL = os.getenv("WEBAPP_URL", "").strip()
+
+# Auto-detect Render external URL or explicit WEBAPP_URL
+WEBAPP_URL = (os.getenv("WEBAPP_URL") or os.getenv("RENDER_EXTERNAL_URL") or "").strip()
 
 DB_PATH = BASE_DIR / "data" / "soz_jangi.db"
 WORDS_FILE = BASE_DIR / "data" / "words.json"
